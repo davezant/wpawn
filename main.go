@@ -17,6 +17,46 @@ func parseStringToLists(text, cutTerm string) []string {
 	return strings.Split(text, cutTerm)
 }
 
+// Software checks
+func isInstalled(verbose bool) bool {
+	cmd1 := exec.Command("bash", "-c", "iw --version")
+	output1, err1 := cmd1.Output()
+	cmd2 := exec.Command("bash", "-c", "wpa_supplicant --version")
+	output2, err2 := cmd2.Output()
+	var nonExistentSoftware []string
+	if err1 != nil {
+		nonExistentSoftware = append(nonExistentSoftware, "iw")
+	}
+	if err2 != nil {
+		nonExistentSoftware = append(nonExistentSoftware, "wpa_supplicant")
+	}
+	if verbose {
+		fmt.Println(string(output1))
+		fmt.Println(string(output2))
+	}
+	if len(nonExistentSoftware) > 0 {
+		fmt.Println("The following software is not installed:", nonExistentSoftware)
+		return false
+	}
+	return true
+}
+
+func getServicesInterface(verbose bool) bool {
+	cmd1 := exec.Command("bash", "-c", "systemctl status wpa_supplicant.service")
+	output1, err1 := cmd1.Output()
+	cmd2 := exec.Command("bash", "-c", "rc-service wpa_supplicant status")
+	output2, err2 := cmd2.Output()
+	if err1 != nil && err2 != nil {
+		fmt.Println("wpa_supplicant service is not running")
+		return false
+	}
+	if verbose {
+		fmt.Println(string(output1))
+		fmt.Println(string(output2))
+	}
+	return true
+}
+
 // Network checks
 func isAliveWlan(verbose bool) bool {
 	cmd := exec.Command("bash", "-c", "iw wlan0 info")
@@ -53,8 +93,9 @@ func networkScanIntoArray(verbose bool) []string {
 	output, err := cmd.Output()
 	if err != nil {
 		if verbose {
-			fmt.Println("Error while scanning")
+			fmt.Println(err)
 		}
+		fmt.Println("Error while scanning")
 		return []string{}
 	}
 
@@ -67,38 +108,53 @@ func networkScanIntoArray(verbose bool) []string {
 }
 
 // Set authentication
-func getConfigurationSimple(SSID, PWD string) string {
+func getConfigurationSimple(SSID, PWD string, verbose bool) string {
 	cmd := exec.Command("bash", "-c", "wpa_passphrase "+SSID+" "+PWD)
 	output, err := cmd.Output()
 	if err != nil {
-		fmt.Println("Error")
+		fmt.Println("Error while creating the configuration")
 		return ""
 	}
-	fmt.Println(string(output))
+	if verbose {
+		fmt.Println(string(output))
+	}
 	return string(output)
 }
 
 // Configuration file operations
-func writeConfigFile(config string) {
+func writeConfigFile(config string, verbose bool) {
 	f, err := os.Create("/etc/wpa_supplicant/wpa_supplicant.conf")
 	if err != nil {
-		fmt.Println("ERROR")
+		if verbose {
+			fmt.Println(err)
+		}
+		fmt.Println("Error while creating the file")
 		return
 	}
 	defer f.Close()
 
 	l, err := f.WriteString(config)
 	if err != nil {
-		fmt.Println("ERROR")
+		if verbose {
+			fmt.Println(err)
+		}
+		fmt.Println("Error while writing the file")
 		return
 	}
-	fmt.Println(l, "bytes written successfully")
+
+	if verbose {
+		fmt.Println(l, " Bytes written successfully!")
+	}
 }
 
-func readConfigFile() {
+func readConfigFile(verbose bool) {
 	f, err := os.Open("/etc/wpa_supplicant/wpa_supplicant.conf")
 	if err != nil {
-		fmt.Println("ERROR")
+		fmt.Println("Error while reading the file")
+		if verbose {
+			fmt.Println(err)
+		}
+
 		return
 	}
 	defer f.Close()
@@ -110,19 +166,26 @@ func readConfigFile() {
 }
 
 // Terminal interaction
-func openNetworkOption(netArray []string) {
+func openNetworkOption(netArray []string, verbose bool) {
 	var i int
 	var pwd string
 	for index, ssid := range netArray {
-		fmt.Println(index, ssid)
+		fmt.Println("[", index, "] - ", ssid)
 	}
+
+	fmt.Println("Input the number of the network you want to connect:")
 	fmt.Scan(&i)
 	SSIDnew := netArray[i]
-	fmt.Println("PASSWORD:")
+	fmt.Println("Input the password of this network:")
 	fmt.Scan(&pwd)
-	writeConfigFile(getConfigurationSimple(SSIDnew, pwd))
+	writeConfigFile(getConfigurationSimple(SSIDnew, pwd, verbose), verbose)
 }
 
 func main() {
-	openNetworkOption(networkScanIntoArray(false))
+	if getServicesInterface(true) == false {
+		if isInstalled(true) == true {
+			openNetworkOption(networkScanIntoArray(false), false)
+		}
+	}
 }
+
