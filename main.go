@@ -8,6 +8,17 @@ import (
 	"strings"
 )
 
+func isRunningSudo(verbose bool) bool{
+	cmd := exec.Command("bash", "-c", "sudo -n echo true")
+	_, err := cmd.Output()
+	if err != nil {
+		if verbose{fmt.Println("Error: Not in sudo")}
+		return false
+	}
+	if verbose{fmt.Println("Started with sudo permissions")}
+	return true
+
+}
 // Utility functions
 func removeTag(text, cutTerm string) string {
 	return strings.ReplaceAll(text, cutTerm, "")
@@ -31,8 +42,10 @@ func isInstalled(verbose bool) bool {
 		nonExistentSoftware = append(nonExistentSoftware, "wpa_supplicant")
 	}
 	if verbose {
+		fmt.Println("----------SOFTWARE-CHECK----------")
 		fmt.Println(string(output1))
 		fmt.Println(string(output2))
+		fmt.Println("----------SOFTWARE-CHECK-END----------")
 	}
 	if len(nonExistentSoftware) > 0 {
 		fmt.Println("The following software is not installed:", nonExistentSoftware)
@@ -51,6 +64,7 @@ func getServicesInterface(verbose bool) bool {
 		return false
 	}
 	if verbose {
+		fmt.Println("----------Daemon-working----------")
 		fmt.Println(string(output1))
 		fmt.Println(string(output2))
 	}
@@ -67,6 +81,7 @@ func isAliveWlan(verbose bool) bool {
 	}
 
 	if verbose {
+		fmt.Println("---------Wlan0-interface-detected----------")
 		fmt.Println(string(output), "\n")
 	}
 	return true
@@ -83,12 +98,14 @@ func isActuallyConnected(verbose bool) string {
 	}
 	result := removeTag(string(output), "\tssid")
 	if verbose {
+		fmt.Println("----------Connection-test-----------")
 		fmt.Println("Is actually connected to:", result, "\n")
 	}
 	return result
 }
 
 func networkScanIntoArray(verbose bool) []string {
+	fmt.Println("Scanning for available network connection...")
 	cmd := exec.Command("bash", "-c", "iw wlan0 scan | grep 'SSID:'")
 	output, err := cmd.Output()
 	if err != nil {
@@ -170,11 +187,18 @@ func openNetworkOption(netArray []string, verbose bool) {
 	var i int
 	var pwd string
 	for index, ssid := range netArray {
-		fmt.Println("[", index, "] - ", ssid)
+		if(ssid != ""){
+			fmt.Println("[", index, "] - ", ssid)
+		}
 	}
 
 	fmt.Println("Input the number of the network you want to connect:")
 	fmt.Scan(&i)
+	if(i>len(netArray)){
+		fmt.Println("Error: Invalid number")
+		return	
+	}
+	
 	SSIDnew := netArray[i]
 	fmt.Println("Input the password of this network:")
 	fmt.Scan(&pwd)
@@ -182,10 +206,14 @@ func openNetworkOption(netArray []string, verbose bool) {
 }
 
 func main() {
-	if getServicesInterface(true) == false {
-		if isInstalled(true) == true {
-			openNetworkOption(networkScanIntoArray(false), false)
+	if isRunningSudo(true){
+		if getServicesInterface(false){
+			if isInstalled(false) == true {
+				openNetworkOption(networkScanIntoArray(false), false)
+			}
 		}
+	} else {
+		fmt.Println("Execute this program with sudo permissions")
 	}
 }
 
