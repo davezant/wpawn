@@ -1,3 +1,4 @@
+/*
 package main
 
 import (
@@ -41,3 +42,4 @@ func main() {
 	// Run the GTK main loop.
 	gtk.Main()
 }
+*/
