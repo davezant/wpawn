@@ -4,4 +4,4 @@
 
 ## WPAWN
 
-Just basic solving the problem of my notebook's web adapter
+Just basic solving the problem of my notebook's web adapter... currently...
